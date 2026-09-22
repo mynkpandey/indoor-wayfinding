@@ -36,6 +36,10 @@ public class DataInitializer {
         Node meetingRoom =
                 new Node("N6", "Meeting Room 4B", "ROOM", 2);
 
+        Node washroom = new Node("N7", "Washroom - Floor 1", "WASHROOM", 1);
+        Node waterStation = new Node("N8", "Water Station - Floor 2", "WATER", 2);
+        Node exit = new Node("N9", "Main Exit", "EXIT", 1);
+
         // =========================
         // Add Nodes to Graph
         // =========================
@@ -46,6 +50,9 @@ public class DataInitializer {
         graph.addNode(lift);
         graph.addNode(floor2Corridor);
         graph.addNode(meetingRoom);
+        graph.addNode(washroom);
+        graph.addNode(waterStation);
+        graph.addNode(exit);
 
         // =========================
         // Add Connections
@@ -62,6 +69,10 @@ public class DataInitializer {
         addTwoWayEdge(graph, "N4", "N5", 30, true);
 
         addTwoWayEdge(graph, "N5", "N6", 15, true);
+
+        addTwoWayEdge(graph, "N2", "N7", 8, true);
+        addTwoWayEdge(graph, "N5", "N8", 6, true);
+        addTwoWayEdge(graph, "N1", "N9", 5, true);
 
         return graph;
     }
