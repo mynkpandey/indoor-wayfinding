@@ -1,13 +1,18 @@
 package com.movieinsync.wayfinding.model;
 
+import jakarta.validation.constraints.NotBlank;
+
 public class RouteRequest {
 
+    @NotBlank(message = "Start location is required.")
     private String start;
+
+    @NotBlank(message = "Destination is required.")
     private String destination;
+
     private boolean wheelchairAccessible;
 
-    public RouteRequest() {
-    }
+    public RouteRequest() {}
 
     public String getStart() {
         return start;

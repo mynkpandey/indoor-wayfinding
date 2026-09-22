@@ -2,6 +2,7 @@ package com.movieinsync.wayfinding.controller;
 
 import com.movieinsync.wayfinding.model.RouteRequest;
 import com.movieinsync.wayfinding.service.RouteService;
+import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.*;
 
@@ -19,7 +20,7 @@ public class RouteController {
 
     @PostMapping
     public Map<String, Object> findRoute(
-            @RequestBody RouteRequest request) {
+            @Valid @RequestBody RouteRequest request) {
 
         return routeService.findRoute(request);
     }

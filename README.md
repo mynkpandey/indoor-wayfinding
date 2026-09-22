@@ -493,3 +493,55 @@ Trade-off:
 The greedy approach is simple and efficient for a small number of
 stops, but it does not guarantee the globally optimal ordering of all
 stops.
+
+## Authentication
+
+The API uses Spring Security with HTTP Basic Authentication.
+
+- `/api/health` is publicly accessible.
+- Other API endpoints require authentication.
+- Authentication is currently implemented using an in-memory demo user.
+- Stateless session management is used.
+- Unauthorized requests return HTTP 401 with a structured JSON response.
+
+For production deployment, database-backed users with hashed passwords or JWT/OAuth2 should be used.
+
+## Error & Exception Handling
+
+The application uses centralized exception handling through `GlobalExceptionHandler`.
+
+Handled cases include:
+
+- Missing required request fields
+- Invalid route requests
+- Unreachable destinations
+- Authentication failures
+- Unexpected server-side exceptions
+
+Validation errors return HTTP 400 with a structured response:
+
+```json
+{
+  "status": "INVALID_REQUEST",
+  "message": "Destination is required.",
+  "timestamp": "..."
+}
+
+
+#### 3. Failure Handling
+
+```markdown
+## Failure Handling
+
+The system is designed to fail gracefully instead of crashing.
+
+Examples:
+
+- Invalid start/destination → clear error response
+- Start equals destination → valid zero-distance response
+- Unreachable destination → `NO_ROUTE`
+- Time-based closure → alternative route or `NO_ROUTE`
+- Wheelchair-inaccessible path → filtered from routing
+- Missing authentication → HTTP 401
+- Invalid request data → HTTP 400
+- Unexpected server error → HTTP 500 with centralized handling
