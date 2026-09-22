@@ -62,7 +62,7 @@ public class DataInitializer {
 
         addTwoWayEdge(graph, "N2", "N3", 15, false);
 
-        addTwoWayEdge(graph, "N2", "N4", 10, true);
+        addCongestedTwoWayEdge(graph, "N2", "N4", 10, true, 2.0);
 
         addTwoWayEdge(graph, "N3", "N5", 25, false);
 
@@ -105,5 +105,31 @@ public class DataInitializer {
                         1.0
                 )
         );
+    }
+    private void addCongestedTwoWayEdge(
+            Graph graph,
+            String from,
+            String to,
+            double distance,
+            boolean wheelchairAccessible,
+            double congestionMultiplier) {
+
+        graph.addEdge(new Edge(
+                from,
+                to,
+                distance,
+                wheelchairAccessible,
+                false,
+                congestionMultiplier
+        ));
+
+        graph.addEdge(new Edge(
+                to,
+                from,
+                distance,
+                wheelchairAccessible,
+                false,
+                congestionMultiplier
+        ));
     }
 }
