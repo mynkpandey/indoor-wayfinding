@@ -3,6 +3,7 @@ package com.movieinsync.wayfinding.algorithm;
 import com.movieinsync.wayfinding.model.Edge;
 import com.movieinsync.wayfinding.model.Node;
 import org.springframework.stereotype.Service;
+import java.time.LocalTime;
 
 import java.util.*;
 
@@ -19,7 +20,8 @@ public class DijkstraService {
     public List<String> findShortestPath(
         String startId,
         String destinationId,
-        boolean wheelchairAccessible) {
+        boolean wheelchairAccessible,
+        LocalTime currentTime)  {
 
         // Distance from start node to every node
         Map<String, Double> distances = new HashMap<>();
@@ -62,7 +64,7 @@ public class DijkstraService {
             for (Edge edge : graph.getEdges(currentNode)) {
 
                 // Skip closed paths
-                if (edge.isClosed()) {
+                if (edge.isClosedAt(currentTime)) {
                     continue;
                 }
 

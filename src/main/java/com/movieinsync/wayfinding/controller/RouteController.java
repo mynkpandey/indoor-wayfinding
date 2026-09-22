@@ -5,6 +5,7 @@ import com.movieinsync.wayfinding.algorithm.Graph;
 import com.movieinsync.wayfinding.model.Edge;
 import com.movieinsync.wayfinding.model.Node;
 import com.movieinsync.wayfinding.model.RouteRequest;
+import java.time.LocalTime;
 
 import org.springframework.web.bind.annotation.*;
 
@@ -68,9 +69,10 @@ public class RouteController {
         }
 
         List<String> path = dijkstraService.findShortestPath(
-                request.getStart(),
-                request.getDestination(),
-                request.isWheelchairAccessible()
+            request.getStart(),
+            request.getDestination(),
+            request.isWheelchairAccessible(),
+            LocalTime.now()
         );
 
         if (path.isEmpty()) {

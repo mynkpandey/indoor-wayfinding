@@ -5,6 +5,7 @@ import com.movieinsync.wayfinding.model.Edge;
 import com.movieinsync.wayfinding.model.Node;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import java.time.LocalTime;
 
 @Configuration
 public class DataInitializer {
@@ -68,7 +69,16 @@ public class DataInitializer {
 
         addTwoWayEdge(graph, "N4", "N5", 30, true);
 
-        addTwoWayEdge(graph, "N5", "N6", 15, true);
+        addClosedTimeTwoWayEdge(
+        graph,
+        "N5",
+        "N6",
+        15,
+        true,
+        1.0,
+        LocalTime.of(22, 0),
+        LocalTime.of(23, 0)
+        );
 
         addTwoWayEdge(graph, "N2", "N7", 8, true);
         addTwoWayEdge(graph, "N5", "N8", 6, true);
@@ -130,6 +140,39 @@ public class DataInitializer {
                 wheelchairAccessible,
                 false,
                 congestionMultiplier
+        ));
+    }
+
+    private void addClosedTimeTwoWayEdge(
+            Graph graph,
+            String from,
+            String to,
+            double distance,
+            boolean wheelchairAccessible,
+            double congestionMultiplier,
+            LocalTime closedFrom,
+            LocalTime closedUntil) {
+
+        graph.addEdge(new Edge(
+                from,
+                to,
+                distance,
+                wheelchairAccessible,
+                false,
+                congestionMultiplier,
+                closedFrom,
+                closedUntil
+        ));
+
+        graph.addEdge(new Edge(
+                to,
+                from,
+                distance,
+                wheelchairAccessible,
+                false,
+                congestionMultiplier,
+                closedFrom,
+                closedUntil
         ));
     }
 }

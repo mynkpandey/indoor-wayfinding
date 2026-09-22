@@ -3,6 +3,7 @@ package com.movieinsync.wayfinding.controller;
 import com.movieinsync.wayfinding.algorithm.DijkstraService;
 import com.movieinsync.wayfinding.algorithm.Graph;
 import com.movieinsync.wayfinding.model.Node;
+import java.time.LocalTime;
 
 import org.springframework.web.bind.annotation.*;
 
@@ -43,9 +44,10 @@ public class PoiController {
             }
 
             List<String> path = dijkstraService.findShortestPath(
-                    start,
-                    node.getId(),
-                    false
+                start,
+                node.getId(),
+                false,
+                LocalTime.now()
             );
 
             if (path.isEmpty()) {
