@@ -8,6 +8,7 @@ import com.movieinsync.wayfinding.model.RouteRequest;
 import com.movieinsync.wayfinding.model.RouteSegment;
 
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
 
 import java.time.LocalTime;
 import java.util.*;
@@ -25,6 +26,10 @@ public class RouteService {
         this.dijkstraService = dijkstraService;
         this.graph = graph;
     }
+    @Cacheable(
+        value = "routes",
+        key = "#request.start + '-' + #request.destination + '-' + #request.wheelchairAccessible"
+    )
 
     public Map<String, Object> findRoute(RouteRequest request) {
 

@@ -35,4 +35,64 @@ public class Graph {
     public Collection<Node> getAllNodes() {
         return nodes.values();
     }
+
+    /**
+     * Creates an independent backup copy of the graph.
+     */
+    public Graph deepCopy() {
+
+        Graph copy = new Graph();
+
+        // Copy all nodes
+        for (Node node : nodes.values()) {
+
+            Node copiedNode = new Node(
+                    node.getId(),
+                    node.getName(),
+                    node.getType(),
+                    node.getFloor()
+            );
+
+            copy.addNode(copiedNode);
+        }
+
+        // Copy all edges
+        for (List<Edge> edges : adjacencyList.values()) {
+
+            for (Edge edge : edges) {
+
+                Edge copiedEdge;
+
+                if (edge.getClosedFrom() != null
+                        && edge.getClosedUntil() != null) {
+
+                    copiedEdge = new Edge(
+                            edge.getFrom(),
+                            edge.getTo(),
+                            edge.getDistance(),
+                            edge.isWheelchairAccessible(),
+                            edge.isClosed(),
+                            edge.getCongestionMultiplier(),
+                            edge.getClosedFrom(),
+                            edge.getClosedUntil()
+                    );
+
+                } else {
+
+                    copiedEdge = new Edge(
+                            edge.getFrom(),
+                            edge.getTo(),
+                            edge.getDistance(),
+                            edge.isWheelchairAccessible(),
+                            edge.isClosed(),
+                            edge.getCongestionMultiplier()
+                    );
+                }
+
+                copy.addEdge(copiedEdge);
+            }
+        }
+
+        return copy;
+    }
 }

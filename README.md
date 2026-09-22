@@ -1,18 +1,19 @@
 # Indoor Wayfinding Backend
 
-This project is a Spring Boot backend for indoor navigation in a multi-floor building. It models the campus as a weighted graph and calculates shortest valid routes using Dijkstra's algorithm.
+A Spring Boot backend for indoor navigation in a multi-floor building. The application models the campus as a graph of connected nodes and calculates shortest valid routes using Dijkstra's algorithm.
 
-## Project Summary
+## Overview
 
-The application is designed to help users:
+This project is a backend-focused indoor navigation system designed to:
 
-- find the shortest route between two indoor locations
-- avoid inaccessible routes for wheelchair users
-- find the nearest washroom, water station, or exit
-- plan a route with multiple stops
-- receive route details including distance and estimated walking time
+- find the shortest route between indoor locations
+- support wheelchair-friendly routing
+- calculate route distance and estimated walking time
+- locate the nearest POI such as a washroom, water station, or exit
+- plan multi-stop journeys
+- handle invalid inputs and unreachable destinations cleanly
 
-The system currently uses an in-memory graph for route calculation and includes JPA entities and repositories for future persistence and database-backed campus data.
+The runtime routing engine uses an in-memory graph, while the project also includes JPA entities, repositories, and a seeded H2 database model.
 
 ## Repository
 
@@ -20,22 +21,25 @@ GitHub: https://github.com/mynkpandey/indoor-wayfinding
 
 ## Features
 
-- Weighted graph-based indoor navigation
-- Dijkstra shortest-path calculation
-- Multi-floor node modeling
-- Wheelchair-accessible route support
-- Congestion-based edge weighting
-- Time-based edge closure handling
-- Nearest POI lookup
+- Graph-based indoor route planning
+- Dijkstra shortest-path computation
+- Multi-floor node and edge modeling
+- Wheelchair-accessible route filtering
+- Congestion-aware edge weighting
+- Time-based closure handling per edge
+- Nearest POI search for:
   - WASHROOM
   - WATER
   - EXIT
-- Multi-stop path planning
+- Multi-stop route planning
+- Input validation and structured error responses
 - Start equals destination handling
-- Invalid request validation
-- Unreachable route handling
-- Spring Boot Actuator health endpoint
-- Java unit tests for routing logic
+- Unreachable route detection
+- Spring Security basic authentication
+- Caffeine cache support for route data
+- Actuator health and metrics endpoints
+- Graph backup and recovery support
+- JUnit tests for routing behavior
 
 ## Technology Stack
 
@@ -43,21 +47,42 @@ GitHub: https://github.com/mynkpandey/indoor-wayfinding
 - Spring Boot 4.1.1
 - Spring Web MVC
 - Spring Data JPA
+- Spring Security
+- Spring Cache with Caffeine
 - H2 Database
 - Spring Boot Actuator
 - Maven
 - JUnit 5
 
+## Authentication
+
+The application uses HTTP Basic Authentication.
+
+### Security rules
+
+- `/api/health` is public
+- `/actuator/health` is public
+- all other endpoints require authentication
+- unauthorized requests return HTTP 401 with a structured JSON response
+
+Example unauthorized response:
+
+```json
+{
+  "status": "UNAUTHORIZED",
+  "message": "Authentication is required."
+}
+```
+
 ## Architecture
 
-The application follows a simple layered structure:
+The project is organized in a layered backend structure:
 
 - Controller layer: exposes REST endpoints
-- Service layer: handles business logic and route response formatting
-- Algorithm layer: contains the graph and shortest-path logic
-- Persistence layer: JPA entities and repositories for campus data
-
-The current route engine runs on a custom in-memory graph defined in the algorithm package, while the entity and repository packages provide database-ready models.
+- Service layer: handles route logic and response creation
+- Algorithm layer: contains the in-memory graph and Dijkstra implementation
+- Persistence layer: JPA entity and repository classes for database-backed campus data
+- Security layer: validates authenticated access to protected endpoints
 
 ## Project Structure
 
@@ -70,7 +95,9 @@ src/
 │   │   │   └── Graph.java
 │   │   ├── config/
 │   │   │   ├── DataInitializer.java
-│   │   │   └── DatabaseSeeder.java
+│   │   │   ├── DatabaseSeeder.java
+│   │   │   ├── GraphBackupInitializer.java
+│   │   │   └── SecurityConfig.java
 │   │   ├── controller/
 │   │   │   ├── HealthController.java
 │   │   │   ├── RouteController.java
@@ -81,8 +108,12 @@ src/
 │   │   │   ├── EdgeEntity.java
 │   │   │   ├── NodeEntity.java
 │   │   │   └── PoiEntity.java
+│   │   ├── exception/
+│   │   │   ├── GlobalExceptionHandler.java
+│   │   │   └── RouteNotFoundException.java
 │   │   ├── model/
 │   │   │   ├── Edge.java
+│   │   │   ├── ErrorResponse.java
 │   │   │   ├── MultiStopRequest.java
 │   │   │   ├── Node.java
 │   │   │   ├── RouteRequest.java
@@ -94,6 +125,7 @@ src/
 │   │   │   └── PoiRepository.java
 │   │   ├── service/
 │   │   │   ├── GraphDatabaseLoader.java
+│   │   │   ├── GraphRecoveryService.java
 │   │   │   └── RouteService.java
 │   │   └── IndoorWayfindingApplication.java
 │   └── resources/
@@ -102,17 +134,18 @@ src/
 │   └── java/com/movieinsync/wayfinding/
 │       ├── DijkstraServiceTest.java
 │       └── IndoorWayfindingApplicationTests.java
-└── docs/
-    └── ER-DIAGRAM.md
+├── docs/
+│   └── ER-DIAGRAM.md
+└── pom.xml
 ```
 
-## Data Model
+## Campus Data Model
 
-The campus is represented with a graph of nodes and edges.
+The app represents a campus as a graph made of nodes and edges.
 
 ### Node
 
-Each node represents a place in the building, such as:
+A node is an indoor location such as:
 
 - Reception
 - Corridor
@@ -123,7 +156,7 @@ Each node represents a place in the building, such as:
 - Water Station
 - Exit
 
-Example node values used in the seeded campus graph:
+Example node definitions used by the sample campus:
 
 - N1 - Reception
 - N2 - Corridor A
@@ -137,64 +170,41 @@ Example node values used in the seeded campus graph:
 
 ### Edge
 
-Each edge connects two nodes and carries route information such as:
+An edge connects two nodes and stores route metadata such as:
 
-- source and destination node IDs
-- physical distance
-- wheelchair accessibility flag
+- source and target node IDs
+- travel distance
+- wheelchair accessibility
 - congestion multiplier
-- optional closure time range
+- optional closure time window
 
 ## Routing Logic
 
-The project uses Dijkstra's shortest-path algorithm to compute the lowest-cost route between locations.
+The project uses Dijkstra's shortest-path algorithm to find the lowest-cost route between two points.
 
-## Complexity Analysis
+### Cost model
 
-Dijkstra's algorithm uses an adjacency-list graph and Java's
-PriorityQueue.
+The route cost is based on:
 
-Time complexity:
-
-O((V + E) log V)
-
-where:
-
-- V = number of nodes
-- E = number of edges
-
-Space complexity:
-
-O(V + E)
-
-The PriorityQueue is used to efficiently select the next node with the
-smallest known route cost.
-
-For repeated multi-stop routing with k stops, the approximate
-complexity is:
-
-O(k × (V + E) log V)
-
-For larger campuses with 1000+ nodes, route caching and precomputation
-of frequently requested routes can reduce repeated computation.
-
-However, dynamic congestion and time-based closures create a trade-off
-between caching performance and route-data freshness.
-
-### Route cost
-
-The effective route cost is based on:
-
-- distance between nodes
+- physical distance
 - congestion multiplier
-- whether the route is wheelchair accessible
-- whether the edge is closed at the current time
+- wheelchair accessibility rules
+- edge closure times
 
-When a route is calculated, any edge that is closed at the current time is skipped. If wheelchair routing is enabled, inaccessible paths such as stairs are ignored.
+The implementation uses a Java `PriorityQueue` to always select the next node with the smallest known cost.
+
+### Complexity
+
+For a graph with V vertices and E edges:
+
+- Time: O((V + E) log V)
+- Space: O(V + E)
+
+Multi-stop route planning uses a greedy nearest-stop approach, which is practical for small stop sets but is not an exact traveling salesman solution.
 
 ## API Endpoints
 
-### 1. Health Check
+### Health check
 
 ```http
 GET /api/health
@@ -209,7 +219,7 @@ Example response:
 }
 ```
 
-### 2. Find Route
+### Find route
 
 ```http
 POST /api/routes
@@ -230,13 +240,7 @@ Example response:
 ```json
 {
   "status": "SUCCESS",
-  "path": [
-    "Reception",
-    "Corridor A",
-    "Stairs",
-    "Floor 2 Corridor",
-    "Meeting Room 4B"
-  ],
+  "path": ["Reception", "Corridor A", "Stairs", "Floor 2 Corridor", "Meeting Room 4B"],
   "segments": [
     {
       "from": "Reception",
@@ -249,18 +253,6 @@ Example response:
       "to": "Stairs",
       "distance": 15.0,
       "wheelchairAccessible": false
-    },
-    {
-      "from": "Stairs",
-      "to": "Floor 2 Corridor",
-      "distance": 25.0,
-      "wheelchairAccessible": false
-    },
-    {
-      "from": "Floor 2 Corridor",
-      "to": "Meeting Room 4B",
-      "distance": 15.0,
-      "wheelchairAccessible": true
     }
   ],
   "totalDistance": 75.0,
@@ -268,7 +260,7 @@ Example response:
 }
 ```
 
-### 3. Find Closest POI
+### Find nearest POI
 
 ```http
 GET /api/poi/nearest?start=N1&type=WASHROOM
@@ -286,7 +278,7 @@ Example response:
 }
 ```
 
-### 4. Multi-Stop Route
+### Multi-stop routing
 
 ```http
 POST /api/routes/multi-stop
@@ -307,27 +299,19 @@ Example response:
 ```json
 {
   "status": "SUCCESS",
-  "path": ["Reception", "Corridor A", "Washroom - Floor 1", "Corridor A",
-    "Lift",
-    "Floor 2 Corridor", "Water Station - Floor 2"],
+  "path": ["Reception", "Corridor A", "Washroom - Floor 1", "Lift", "Floor 2 Corridor", "Water Station - Floor 2"],
   "totalDistance": 92.0,
   "stopsVisited": ["N7", "N8"]
 }
 ```
+
 ## Error Handling
 
-The application handles several invalid or impossible routing conditions without crashing.
-Examples include:
+The app returns structured JSON responses for invalid or impossible route requests.
 
-### Invalid start location
+### Examples
 
-```json
-{
-  "status": "INVALID_REQUEST",
-  "message": "Start location does not exist."
-}
-```
-### Invalid destination
+#### Invalid request
 
 ```json
 {
@@ -335,7 +319,8 @@ Examples include:
   "message": "Destination does not exist."
 }
 ```
-### Unreachable destination
+
+#### Unreachable route
 
 ```json
 {
@@ -343,76 +328,122 @@ Examples include:
   "message": "No route found between the selected locations."
 }
 ```
-### Same start and destination
+
+#### Same start and destination
 
 ```json
 {
   "status": "SUCCESS",
   "message": "Start and destination are the same.",
-  "path": [
-    "Reception"
-  ],
+  "path": ["Reception"],
   "segments": [],
   "totalDistance": 0.0,
   "estimatedTimeMinutes": 0.0
 }
 ```
+
 ## Sample Campus Setup
 
-The application initializes a sample campus graph in `DataInitializer.java` with these route patterns:
+The app initializes a sample campus graph in `DataInitializer.java` with the following routing paths:
 
 - N1 ↔ N2
 - N2 ↔ N3 (stairs, not wheelchair accessible)
-- N2 ↔ N4 (lift, wheelchair accessible but congested)
+- N2 ↔ N4 (lift, wheelchair accessible, congested)
 - N3 ↔ N5
 - N4 ↔ N5
-- N5 ↔ N6 (closed at specific time windows)
-- N2 ↔ N7 (washroom)
-- N5 ↔ N8 (water station)
-- N1 ↔ N9 (exit)
+- N5 ↔ N6 (closed during a scheduled time window)
+- N2 ↔ N7
+- N5 ↔ N8
+- N1 ↔ N9
 
-This sample campus is useful for testing routing logic without requiring an external map service or database import.
+This fake campus is used to test route behavior without needing a real map backend.
 
-## Database and Persistence
+## Persistence and Database Design
 
-The project also includes JPA entity and repository classes for campus data management:
+The project includes JPA entities and repository classes for a relational database model:
 
-- NodeEntity
-- EdgeEntity
-- ClosureEntity
-- PoiEntity
-- NodeRepository
-- EdgeRepository
-- ClosureRepository
-- PoiRepository
+- `NodeEntity`
+- `EdgeEntity`
+- `ClosureEntity`
+- `PoiEntity`
+- `NodeRepository`
+- `EdgeRepository`
+- `ClosureRepository`
+- `PoiRepository`
 
-The seeded data in `DatabaseSeeder.java` loads initial campus nodes into the H2 database.
+The ER diagram is documented in [docs/ER-DIAGRAM.md](docs/ER-DIAGRAM.md).
 
-## ER Diagram
+## Monitoring and Cache
 
-The project includes an ER diagram describing the planned relational persistence model.
+The application exposes Spring Boot Actuator endpoints for health and metrics, and uses Spring Cache with Caffeine to reduce repeated route computation.
 
-The database model contains:
+### Actuator configuration
 
-### Database Relationship Structure
+```properties
+management.endpoints.web.exposure.include=health,info,metrics
+management.endpoint.health.show-details=always
+management.info.env.enabled=true
 
-```text
-BUILDINGS
-    │
-    └── NODES
-          │
-          ├── EDGES
-          │      └── CLOSURES
-          │
-          └── POIS
+info.app.name=Indoor Wayfinding Backend
+info.app.description=Indoor navigation and route planning system
+info.app.version=1.0.0
 ```
 
-### See:
-```text
-docs/ER-DIAGRAM.md
-```
-for the detailed database design and relationships.
+### Route cache configuration
 
+```properties
+spring.cache.type=caffeine
+spring.cache.cache-names=routes
+spring.cache.caffeine.spec=maximumSize=500,expireAfterWrite=5m
+```
+
+### Monitoring endpoints
+
+```text
+GET /actuator/health
+GET /actuator/info
+GET /actuator/metrics
+```
+
+### Route caching
+
+The application caches route results using a key derived from:
+
+- start node
+- destination node
+- wheelchair requirement
+
+Example cache key:
+
+```text
+N1-N6-false
+```
+
+This helps avoid recomputing the same path for repeated requests when the campus graph is unchanged. The trade-off is that cached responses can become stale if graph data, closures, or congestion values change. In this project, the 5-minute expiration window strikes a practical balance between fast repeated lookups and route freshness.
+
+## Graph Backup and Recovery
+
+The app includes a backup mechanism for the in-memory graph so the campus structure can be restored if needed.
+
+Components:
+
+- `GraphBackupInitializer`
+- `GraphRecoveryService`
+- `Graph.deepCopy()`
+
+### Backup behavior
+
+`createBackup()` creates an independent deep copy of the current campus graph.
+
+### Recovery checks
+
+`isBackupAvailable()` checks whether a recovery backup exists before attempting restoration.
+
+### Restore behavior
+
+`recoverGraph()` restores a fresh copy of the backup graph for fallback or recovery scenarios.
+
+This is a fault-tolerance feature for the runtime graph used during route calculations. It is useful for protecting graph state in a prototype environment, although the active routing engine remains in-memory rather than database-driven.
 
 ## Running the Project
 
@@ -421,7 +452,7 @@ for the detailed database design and relationships.
 - Java 17+
 - Maven
 
-### Run locally
+### Start the application
 
 ```bash
 ./mvnw spring-boot:run
@@ -433,7 +464,7 @@ On Windows:
 mvnw.cmd spring-boot:run
 ```
 
-The application starts on:
+Application URL:
 
 ```text
 http://localhost:8080
@@ -447,101 +478,6 @@ http://localhost:8080
 
 ## Notes
 
-This project is a backend-focused proof of concept for indoor wayfinding. It demonstrates graph-based pathfinding, route filtering, POI discovery, and campus data modeling in a Spring Boot application.
+This project is a backend prototype for an indoor wayfinding system. It demonstrates graph traversal, constrained shortest-path routing, POI detection, authentication, caching, and monitoring in a single Spring Boot service.
 
-The current implementation uses an in-memory graph for runtime routing, while the database layer is prepared to support more persistent and scalable campus data in the future.
-
-## Assumptions and Trade-offs
-
-- Edge weights are non-negative.
-- Walking speed is assumed to be 1.4 metres/second.
-- Congestion is represented using a multiplier.
-- Closed edges cannot be used during their closure period.
-- Wheelchair routing excludes inaccessible edges.
-- The current routing graph is maintained in memory.
-- H2/JPA provides the persistence model but is not currently the
-  runtime source for Dijkstra's graph.
-- Multi-stop routing uses a greedy nearest-stop heuristic rather than
-  an exact TSP solution.
-
-### In-Memory Graph
-
-Advantages:
-
-- Fast route calculation
-- Simple graph traversal
-- Efficient Dijkstra execution
-
-Trade-off:
-
-- Campus data changes require graph updates or reloading.
-
-### Database Persistence
-
-Advantages:
-
-- Persistent campus data
-- Easier future administration and updates
-- Suitable for production data management
-
-Trade-off:
-
-- Database access introduces additional overhead.
-
-### Multi-Stop Routing
-
-The greedy approach is simple and efficient for a small number of
-stops, but it does not guarantee the globally optimal ordering of all
-stops.
-
-## Authentication
-
-The API uses Spring Security with HTTP Basic Authentication.
-
-- `/api/health` is publicly accessible.
-- Other API endpoints require authentication.
-- Authentication is currently implemented using an in-memory demo user.
-- Stateless session management is used.
-- Unauthorized requests return HTTP 401 with a structured JSON response.
-
-For production deployment, database-backed users with hashed passwords or JWT/OAuth2 should be used.
-
-## Error & Exception Handling
-
-The application uses centralized exception handling through `GlobalExceptionHandler`.
-
-Handled cases include:
-
-- Missing required request fields
-- Invalid route requests
-- Unreachable destinations
-- Authentication failures
-- Unexpected server-side exceptions
-
-Validation errors return HTTP 400 with a structured response:
-
-```json
-{
-  "status": "INVALID_REQUEST",
-  "message": "Destination is required.",
-  "timestamp": "..."
-}
-
-
-#### 3. Failure Handling
-
-```markdown
-## Failure Handling
-
-The system is designed to fail gracefully instead of crashing.
-
-Examples:
-
-- Invalid start/destination → clear error response
-- Start equals destination → valid zero-distance response
-- Unreachable destination → `NO_ROUTE`
-- Time-based closure → alternative route or `NO_ROUTE`
-- Wheelchair-inaccessible path → filtered from routing
-- Missing authentication → HTTP 401
-- Invalid request data → HTTP 400
-- Unexpected server error → HTTP 500 with centralized handling
+The current implementation uses an in-memory graph as the active routing source, while the JPA layer provides model support for future persistence and database-driven campus data.
