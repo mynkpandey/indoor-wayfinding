@@ -51,8 +51,33 @@ GitHub: https://github.com/mynkpandey/indoor-wayfinding
 - Spring Cache with Caffeine
 - H2 Database
 - Spring Boot Actuator
+- Micrometer + Prometheus
+- Grafana
 - Maven
 - JUnit 5
+
+## Monitoring Architecture
+
+The project uses Spring Boot metrics and Actuator as the application instrumentation layer, then exports them to Prometheus, which is visualized in Grafana.
+
+```text
+Spring Boot
+   ↓
+Micrometer / Actuator
+   ↓
+Prometheus
+   ↓
+Grafana
+```
+
+### Monitoring flow
+
+- Spring Boot exposes JVM and HTTP metrics through Micrometer
+- Actuator exposes `/actuator/health` and `/actuator/metrics`
+- Prometheus scrapes those metrics periodically
+- Grafana queries Prometheus and displays them in dashboards
+
+This architecture makes it possible to monitor real-time application health, traffic, latency, and caching behavior alongside the campus routing service.
 
 ## Authentication
 
@@ -375,18 +400,33 @@ The ER diagram is documented in [docs/ER-DIAGRAM.md](docs/ER-DIAGRAM.md).
 
 ## Monitoring and Cache
 
-The application exposes Spring Boot Actuator endpoints for health and metrics, and uses Spring Cache with Caffeine to reduce repeated route computation.
+The application exposes Spring Boot Actuator endpoints for health and metrics, and uses Spring Cache with Caffeine to reduce repeated route computation. The monitoring pipeline is integrated with Prometheus and Grafana to visualize application performance in real time.
 
 ### Actuator configuration
 
 ```properties
-management.endpoints.web.exposure.include=health,info,metrics
+management.endpoints.web.exposure.include=health,info,metrics,prometheus
 management.endpoint.health.show-details=always
 management.info.env.enabled=true
 
 info.app.name=Indoor Wayfinding Backend
 info.app.description=Indoor navigation and route planning system
 info.app.version=1.0.0
+```
+
+### Prometheus scraping configuration
+
+Prometheus can scrape the Spring Boot metrics endpoint at the application target.
+
+```yaml
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: "indoor-wayfinding"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["localhost:8080"]
 ```
 
 ### Route cache configuration
@@ -403,7 +443,23 @@ spring.cache.caffeine.spec=maximumSize=500,expireAfterWrite=5m
 GET /actuator/health
 GET /actuator/info
 GET /actuator/metrics
+GET /actuator/prometheus
 ```
+
+### Grafana dashboard metrics
+
+Recommended dashboard panels include:
+
+- HTTP request count by endpoint
+- HTTP request latency and response time
+- JVM heap usage and thread count
+- application uptime
+- route cache hit/miss rate
+- cache size and eviction count
+- Prometheus target health status
+- request rate and error rate for `/api/routes` and `/api/poi/nearest`
+
+These metrics help validate how the backend performs under normal traffic and during route-heavy requests.
 
 ### Route caching
 
