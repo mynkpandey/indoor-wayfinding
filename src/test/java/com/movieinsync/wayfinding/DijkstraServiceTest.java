@@ -51,8 +51,7 @@ class DijkstraServiceTest {
                 "A",
                 "E",
                 false,
-                LocalTime.of(14, 0)
-        );
+                LocalTime.of(14, 0));
 
         assertEquals(List.of("A", "B", "C", "E"), path);
     }
@@ -67,8 +66,7 @@ class DijkstraServiceTest {
                 "A",
                 "E",
                 true,
-                LocalTime.of(14, 0)
-        );
+                LocalTime.of(14, 0));
 
         assertEquals(List.of("A", "B", "D", "E"), path);
     }
@@ -84,16 +82,101 @@ class DijkstraServiceTest {
                 "X",
                 "Unreachable Room",
                 "ROOM",
-                3
-        ));
+                3));
 
         List<String> path = service.findShortestPath(
                 "A",
                 "X",
                 false,
-                LocalTime.of(14, 0)
-        );
+                LocalTime.of(14, 0));
 
         assertTrue(path.isEmpty());
+    }
+
+    @Test
+    void shouldPreferLessCongestedRoute() {
+
+        Graph graph = new Graph();
+
+        graph.addNode(new Node("A", "Start", "ROOM", 1));
+        graph.addNode(new Node("B", "Congested Route", "CORRIDOR", 1));
+        graph.addNode(new Node("C", "Alternative Route", "CORRIDOR", 1));
+        graph.addNode(new Node("D", "Destination", "ROOM", 1));
+
+        // Direct route: 10m × 2.0 congestion = 20 effective cost
+        graph.addEdge(new Edge("A", "B", 10, true, false, 2.0));
+        graph.addEdge(new Edge("B", "A", 10, true, false, 2.0));
+
+        // Alternative route: 12m × 1.0 congestion = 12 effective cost
+        graph.addEdge(new Edge("A", "C", 12, true, false, 1.0));
+        graph.addEdge(new Edge("C", "A", 12, true, false, 1.0));
+
+        graph.addEdge(new Edge("B", "D", 10, true, false, 1.0));
+        graph.addEdge(new Edge("D", "B", 10, true, false, 1.0));
+
+        graph.addEdge(new Edge("C", "D", 5, true, false, 1.0));
+        graph.addEdge(new Edge("D", "C", 5, true, false, 1.0));
+
+        DijkstraService service = new DijkstraService(graph);
+
+        List<String> path = service.findShortestPath(
+                "A",
+                "D",
+                false,
+                LocalTime.of(14, 0));
+
+        assertEquals(List.of("A", "C", "D"), path);
+    }
+
+    @Test
+    void shouldAvoidClosedEdge() {
+
+        Graph graph = new Graph();
+
+        graph.addNode(new Node("A", "Start", "ROOM", 1));
+        graph.addNode(new Node("B", "Corridor", "CORRIDOR", 1));
+        graph.addNode(new Node("C", "Alternative", "CORRIDOR", 1));
+        graph.addNode(new Node("D", "Destination", "ROOM", 1));
+
+        // Closed from 13:00 to 15:00
+        graph.addEdge(new Edge(
+                "A",
+                "B",
+                5,
+                true,
+                false,
+                1.0,
+                LocalTime.of(13, 0),
+                LocalTime.of(15, 0)));
+
+        graph.addEdge(new Edge(
+                "B",
+                "A",
+                5,
+                true,
+                false,
+                1.0,
+                LocalTime.of(13, 0),
+                LocalTime.of(15, 0)));
+
+        // Alternative route
+        graph.addEdge(new Edge("A", "C", 10, true, false, 1.0));
+        graph.addEdge(new Edge("C", "A", 10, true, false, 1.0));
+
+        graph.addEdge(new Edge("C", "D", 10, true, false, 1.0));
+        graph.addEdge(new Edge("D", "C", 10, true, false, 1.0));
+
+        graph.addEdge(new Edge("B", "D", 5, true, false, 1.0));
+        graph.addEdge(new Edge("D", "B", 5, true, false, 1.0));
+
+        DijkstraService service = new DijkstraService(graph);
+
+        List<String> path = service.findShortestPath(
+                "A",
+                "D",
+                false,
+                LocalTime.of(14, 0));
+
+        assertEquals(List.of("A", "C", "D"), path);
     }
 }

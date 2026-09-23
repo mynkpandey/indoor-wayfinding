@@ -36,6 +36,7 @@ GitHub: https://github.com/mynkpandey/indoor-wayfinding
 - Start equals destination handling
 - Unreachable route detection
 - Spring Security basic authentication
+- Swagger/OpenAPI interactive API documentation
 - Caffeine cache support for route data
 - Actuator health and metrics endpoints
 - Graph backup and recovery support
@@ -48,6 +49,7 @@ GitHub: https://github.com/mynkpandey/indoor-wayfinding
 - Spring Web MVC
 - Spring Data JPA
 - Spring Security
+- Springdoc OpenAPI / Swagger UI
 - Spring Cache with Caffeine
 - H2 Database
 - Spring Boot Actuator
@@ -228,6 +230,14 @@ For a graph with V vertices and E edges:
 Multi-stop route planning uses a greedy nearest-stop approach, which is practical for small stop sets but is not an exact traveling salesman solution.
 
 ## API Endpoints
+
+### Swagger / OpenAPI
+
+Interactive API documentation is available through Swagger UI:
+
+http://localhost:8080/swagger-ui/index.html
+
+Swagger provides interactive documentation and testing for the REST endpoints. Protected endpoints can be tested using HTTP Basic Authentication.
 
 ### Health check
 
