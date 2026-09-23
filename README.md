@@ -1,19 +1,27 @@
 # Indoor Wayfinding Backend
 
-A Spring Boot backend for indoor navigation in a multi-floor building. The application models the campus as a graph of connected nodes and calculates shortest valid routes using Dijkstra's algorithm.
+A Spring Boot application for indoor navigation and route planning across a multi-floor campus. The project models connected indoor spaces as a graph, calculates valid shortest paths with Dijkstra's algorithm, and exposes a REST API protected by HTTP Basic Authentication.
 
 ## Overview
 
-This project is a backend-focused indoor navigation system designed to:
+This backend supports:
 
-- find the shortest route between indoor locations
-- support wheelchair-friendly routing
-- calculate route distance and estimated walking time
-- locate the nearest POI such as a washroom, water station, or exit
-- plan multi-stop journeys
-- handle invalid inputs and unreachable destinations cleanly
+- routing between indoor locations
+- wheelchair-aware route filtering
+- nearest POI lookup for washrooms, water stations, and exits
+- multi-stop journey planning
+- route distance and estimated walking time calculation
+- validation for invalid or unreachable inputs
+- graph backup and recovery support
+- interactive API documentation through Swagger UI
 
-The runtime routing engine uses an in-memory graph, while the project also includes JPA entities, repositories, and a seeded H2 database model.
+The application uses an in-memory campus graph initialized at startup, with additional support for graph backup, caching, metrics, and monitoring.
+
+### Persistence note
+
+The current prototype performs routing against an in-memory graph for fast path calculation.
+
+JPA entities and repositories are included as the persistence foundation for storing nodes, edges, closures, and POIs in a relational database. The runtime routing graph is currently initialized in memory rather than being loaded from the database on every request.
 
 ## Repository
 
@@ -22,24 +30,25 @@ GitHub: https://github.com/mynkpandey/indoor-wayfinding
 ## Features
 
 - Graph-based indoor route planning
-- Dijkstra shortest-path computation
+- Dijkstra shortest-path routing
 - Multi-floor node and edge modeling
 - Wheelchair-accessible route filtering
 - Congestion-aware edge weighting
-- Time-based closure handling per edge
+- Time-based closure handling on edges
 - Nearest POI search for:
   - WASHROOM
   - WATER
   - EXIT
 - Multi-stop route planning
 - Input validation and structured error responses
-- Start equals destination handling
+- Start-equals-destination handling
 - Unreachable route detection
 - Spring Security basic authentication
 - Swagger/OpenAPI interactive API documentation
 - Caffeine cache support for route data
 - Actuator health and metrics endpoints
 - Graph backup and recovery support
+- Prometheus/Grafana monitoring integration
 - JUnit tests for routing behavior
 
 ## Technology Stack
@@ -58,39 +67,30 @@ GitHub: https://github.com/mynkpandey/indoor-wayfinding
 - Maven
 - JUnit 5
 
-## Monitoring Architecture
+## Project Architecture
 
-The project uses Spring Boot metrics and Actuator as the application instrumentation layer, then exports them to Prometheus, which is visualized in Grafana.
+The application follows a layered backend structure:
 
-```text
-Spring Boot
-   ↓
-Micrometer / Actuator
-   ↓
-Prometheus
-   ↓
-Grafana
-```
+- Controller layer: exposes REST endpoints
+- Service layer: handles route calculations and response creation
+- Algorithm layer: contains the in-memory graph and Dijkstra implementation
+- Persistence layer: JPA entities and repositories for campus data storage
+- Security layer: protects endpoints and enforces Basic Auth
+- Monitoring layer: metrics and health endpoints for Prometheus/Grafana
 
-### Monitoring flow
+## Security and Authentication
 
-- Spring Boot exposes JVM and HTTP metrics through Micrometer
-- Actuator exposes `/actuator/health` and `/actuator/metrics`
-- Prometheus scrapes those metrics periodically
-- Grafana queries Prometheus and displays them in dashboards
-
-This architecture makes it possible to monitor real-time application health, traffic, latency, and caching behavior alongside the campus routing service.
-
-## Authentication
-
-The application uses HTTP Basic Authentication.
+The app uses HTTP Basic Authentication for protected endpoints.
 
 ### Security rules
 
 - `/api/health` is public
+- `/api/health/recovery` is protected
 - `/actuator/health` is public
+- `/actuator/prometheus` is public
+- `/swagger-ui/**`, `/swagger-ui.html`, and `/v3/api-docs/**` are public
 - all other endpoints require authentication
-- unauthorized requests return HTTP 401 with a structured JSON response
+- unauthorized requests return HTTP 401 with a JSON response
 
 Example unauthorized response:
 
@@ -101,89 +101,27 @@ Example unauthorized response:
 }
 ```
 
-## Architecture
+### Demo authentication
 
-The project is organized in a layered backend structure:
+The application uses HTTP Basic Authentication for protected endpoints.
 
-- Controller layer: exposes REST endpoints
-- Service layer: handles route logic and response creation
-- Algorithm layer: contains the in-memory graph and Dijkstra implementation
-- Persistence layer: JPA entity and repository classes for database-backed campus data
-- Security layer: validates authenticated access to protected endpoints
+For local demonstration, credentials are configured in the application's security configuration.
 
-## Project Structure
+> In a production deployment, credentials should be stored securely using environment variables, a database-backed identity provider, or OAuth2/JWT rather than hardcoded credentials.
 
-```text
-src/
-├── main/
-│   ├── java/com/movieinsync/wayfinding/
-│   │   ├── algorithm/
-│   │   │   ├── DijkstraService.java
-│   │   │   └── Graph.java
-│   │   ├── config/
-│   │   │   ├── DataInitializer.java
-│   │   │   ├── DatabaseSeeder.java
-│   │   │   ├── GraphBackupInitializer.java
-│   │   │   └── SecurityConfig.java
-│   │   ├── controller/
-│   │   │   ├── HealthController.java
-│   │   │   ├── RouteController.java
-│   │   │   ├── PoiController.java
-│   │   │   └── MultiStopController.java
-│   │   ├── entity/
-│   │   │   ├── ClosureEntity.java
-│   │   │   ├── EdgeEntity.java
-│   │   │   ├── NodeEntity.java
-│   │   │   └── PoiEntity.java
-│   │   ├── exception/
-│   │   │   ├── GlobalExceptionHandler.java
-│   │   │   └── RouteNotFoundException.java
-│   │   ├── model/
-│   │   │   ├── Edge.java
-│   │   │   ├── ErrorResponse.java
-│   │   │   ├── MultiStopRequest.java
-│   │   │   ├── Node.java
-│   │   │   ├── RouteRequest.java
-│   │   │   └── RouteSegment.java
-│   │   ├── repository/
-│   │   │   ├── ClosureRepository.java
-│   │   │   ├── EdgeRepository.java
-│   │   │   ├── NodeRepository.java
-│   │   │   └── PoiRepository.java
-│   │   ├── service/
-│   │   │   ├── GraphDatabaseLoader.java
-│   │   │   ├── GraphRecoveryService.java
-│   │   │   └── RouteService.java
-│   │   └── IndoorWayfindingApplication.java
-│   └── resources/
-│       └── application.properties
-├── test/
-│   └── java/com/movieinsync/wayfinding/
-│       ├── DijkstraServiceTest.java
-│       └── IndoorWayfindingApplicationTests.java
-├── docs/
-│   └── ER-DIAGRAM.md
-└── pom.xml
-```
+## Swagger / OpenAPI
 
-## Campus Data Model
+Interactive API documentation is available through Swagger UI:
 
-The app represents a campus as a graph made of nodes and edges.
+http://localhost:8080/swagger-ui/index.html
 
-### Node
+Swagger provides interactive documentation and testing for the REST endpoints. Protected endpoints can be tested using HTTP Basic Authentication.
 
-A node is an indoor location such as:
+The OpenAPI configuration is defined in `OpenApiConfig.java` and includes a Basic Auth security scheme for all documented APIs.
 
-- Reception
-- Corridor
-- Lift
-- Stairs
-- Meeting Room
-- Washroom
-- Water Station
-- Exit
+## Sample Campus Graph
 
-Example node definitions used by the sample campus:
+The app initializes a default campus graph at startup with the following nodes:
 
 - N1 - Reception
 - N2 - Corridor A
@@ -195,30 +133,34 @@ Example node definitions used by the sample campus:
 - N8 - Water Station - Floor 2
 - N9 - Main Exit
 
-### Edge
+The sample graph includes:
 
-An edge connects two nodes and stores route metadata such as:
+- N1 ↔ N2
+- N2 ↔ N3 (stairs; not wheelchair accessible)
+- N2 ↔ N4 (lift; wheelchair accessible, congested)
+- N3 ↔ N5
+- N4 ↔ N5
+- N5 ↔ N6 (time-closed during a scheduled window)
+- N2 ↔ N7
+- N5 ↔ N8
+- N1 ↔ N9
 
-- source and target node IDs
-- travel distance
-- wheelchair accessibility
-- congestion multiplier
-- optional closure time window
+This sample campus is used to test route behavior without requiring a real map backend.
 
 ## Routing Logic
 
-The project uses Dijkstra's shortest-path algorithm to find the lowest-cost route between two points.
+The project uses Dijkstra's shortest-path algorithm to compute the lowest-cost route between two points.
 
 ### Cost model
 
-The route cost is based on:
+Route cost is based on:
 
 - physical distance
 - congestion multiplier
 - wheelchair accessibility rules
 - edge closure times
 
-The implementation uses a Java `PriorityQueue` to always select the next node with the smallest known cost.
+The algorithm uses a Java `PriorityQueue` to always select the next node with the smallest known cost.
 
 ### Complexity
 
@@ -227,17 +169,17 @@ For a graph with V vertices and E edges:
 - Time: O((V + E) log V)
 - Space: O(V + E)
 
-Multi-stop route planning uses a greedy nearest-stop approach, which is practical for small stop sets but is not an exact traveling salesman solution.
+Multi-stop route planning uses a greedy nearest-stop strategy, which is practical for a small number of stops but is not a full traveling salesman optimizer.
+
+| Method | Endpoint | Purpose | Authentication |
+|---|---|---|---|
+| GET | `/api/health` | Health check | No |
+| POST | `/api/routes` | Find shortest route | Yes |
+| GET | `/api/poi/nearest` | Find nearest POI | Yes |
+| POST | `/api/routes/multi-stop` | Multi-stop route | Yes |
+| GET | `/api/health/recovery` | Graph recovery status | Yes |
 
 ## API Endpoints
-
-### Swagger / OpenAPI
-
-Interactive API documentation is available through Swagger UI:
-
-http://localhost:8080/swagger-ui/index.html
-
-Swagger provides interactive documentation and testing for the REST endpoints. Protected endpoints can be tested using HTTP Basic Authentication.
 
 ### Health check
 
@@ -251,6 +193,22 @@ Example response:
 {
   "status": "UP",
   "service": "Indoor Wayfinding Backend"
+}
+```
+
+### Recovery health
+
+```http
+GET /api/health/recovery
+```
+
+Example response:
+
+```json
+{
+  "status": "UP",
+  "backupAvailable": true,
+  "message": "Campus graph backup is available."
 }
 ```
 
@@ -342,11 +300,9 @@ Example response:
 
 ## Error Handling
 
-The app returns structured JSON responses for invalid or impossible route requests.
+The API returns structured JSON responses for invalid, missing, or impossible route requests.
 
-### Examples
-
-#### Invalid request
+### Invalid request
 
 ```json
 {
@@ -355,7 +311,7 @@ The app returns structured JSON responses for invalid or impossible route reques
 }
 ```
 
-#### Unreachable route
+### Unreachable route
 
 ```json
 {
@@ -364,7 +320,7 @@ The app returns structured JSON responses for invalid or impossible route reques
 }
 ```
 
-#### Same start and destination
+### Same start and destination
 
 ```json
 {
@@ -377,40 +333,59 @@ The app returns structured JSON responses for invalid or impossible route reques
 }
 ```
 
-## Sample Campus Setup
+## Testing
 
-The app initializes a sample campus graph in `DataInitializer.java` with the following routing paths:
+The project includes automated JUnit tests covering:
 
-- N1 ↔ N2
-- N2 ↔ N3 (stairs, not wheelchair accessible)
-- N2 ↔ N4 (lift, wheelchair accessible, congested)
-- N3 ↔ N5
-- N4 ↔ N5
-- N5 ↔ N6 (closed during a scheduled time window)
-- N2 ↔ N7
-- N5 ↔ N8
-- N1 ↔ N9
+- Dijkstra shortest-path routing
+- wheelchair accessibility
+- unreachable destinations
+- congestion-aware routing
+- time-based closures
+- successful route requests
+- invalid start/destination handling
+- start equals destination
+- controller authentication
+- controller validation
 
-This fake campus is used to test route behavior without needing a real map backend.
+Latest test result:
 
-## Persistence and Database Design
+```text
+Tests run: 15
+Failures: 0
+Errors: 0
+Skipped: 0
+BUILD SUCCESS
+```
 
-The project includes JPA entities and repository classes for a relational database model:
+Run:
 
-- `NodeEntity`
-- `EdgeEntity`
-- `ClosureEntity`
-- `PoiEntity`
-- `NodeRepository`
-- `EdgeRepository`
-- `ClosureRepository`
-- `PoiRepository`
-
-The ER diagram is documented in [docs/ER-DIAGRAM.md](docs/ER-DIAGRAM.md).
+```bash
+./mvnw clean test
+```
 
 ## Monitoring and Cache
 
-The application exposes Spring Boot Actuator endpoints for health and metrics, and uses Spring Cache with Caffeine to reduce repeated route computation. The monitoring pipeline is integrated with Prometheus and Grafana to visualize application performance in real time.
+The application exposes Spring Boot Actuator endpoints for health and metrics and uses Spring Cache with Caffeine to reduce repeated route computation.
+
+### Monitoring flow
+
+```text
+Spring Boot
+   ↓
+Micrometer / Actuator
+   ↓
+Prometheus
+   ↓
+Grafana
+```
+
+The project includes:
+
+- health endpoint exposure
+- Prometheus metrics export
+- caching for repeated route lookups
+- graph backup and recovery diagnostics
 
 ### Actuator configuration
 
@@ -424,126 +399,85 @@ info.app.description=Indoor navigation and route planning system
 info.app.version=1.0.0
 ```
 
-### Prometheus scraping configuration
+### Caching trade-off
 
-Prometheus can scrape the Spring Boot metrics endpoint at the application target.
+Route results are cached using Caffeine with a short TTL to reduce repeated Dijkstra calculations.
 
-```yaml
-global:
-  scrape_interval: 5s
+Because edge closures are time-dependent, cached routes may remain valid until the cache entry expires. The prototype uses a 5-minute TTL as a balance between performance and route freshness.
 
-scrape_configs:
-  - job_name: "indoor-wayfinding"
-    metrics_path: "/actuator/prometheus"
-    static_configs:
-      - targets: ["localhost:8080"]
-```
+A production system could invalidate affected route entries whenever closure schedules change.
 
-### Route cache configuration
-
-```properties
-spring.cache.type=caffeine
-spring.cache.cache-names=routes
-spring.cache.caffeine.spec=maximumSize=500,expireAfterWrite=5m
-```
-
-### Monitoring endpoints
+## Project Structure
 
 ```text
-GET /actuator/health
-GET /actuator/info
-GET /actuator/metrics
-GET /actuator/prometheus
+src/
+├── main/
+│   ├── java/com/movieinsync/wayfinding/
+│   │   ├── algorithm/
+│   │   │   ├── DijkstraService.java
+│   │   │   └── Graph.java
+│   │   ├── config/
+│   │   │   ├── DataInitializer.java
+│   │   │   ├── GraphBackupInitializer.java
+│   │   │   ├── OpenApiConfig.java
+│   │   │   └── SecurityConfig.java
+│   │   ├── controller/
+│   │   │   ├── HealthController.java
+│   │   │   ├── MultiStopController.java
+│   │   │   ├── PoiController.java
+│   │   │   └── RouteController.java
+│   │   ├── entity/
+│   │   │   ├── NodeEntity.java
+│   │   │   ├── EdgeEntity.java
+│   │   │   ├── ClosureEntity.java
+│   │   │   └── PoiEntity.java
+│   │   ├── model/
+│   │   │   ├── Edge.java
+│   │   │   ├── ErrorResponse.java
+│   │   │   ├── MultiStopRequest.java
+│   │   │   ├── Node.java
+│   │   │   ├── RouteRequest.java
+│   │   │   └── RouteSegment.java
+│   │   ├── repository/
+│   │   │   ├── NodeRepository.java
+│   │   │   ├── EdgeRepository.java
+│   │   │   ├── ClosureRepository.java
+│   │   │   └── PoiRepository.java
+│   │   └── service/
+│   │       ├── GraphRecoveryService.java
+│   │       └── RouteService.java
+│   └── resources/
+│       └── application.properties
+├── test/
+│   └── java/com/movieinsync/wayfinding/
+│       ├── DijkstraServiceTest.java
+│       ├── IndoorWayfindingApplicationTests.java
+│       ├── RouteServiceTest.java
+│       └── RouteControllerTest.java
+├── docs/
+│   └── ER-DIAGRAM.md
+├── pom.xml
+├── mvnw
+├── mvnw.cmd
+└── README.md
 ```
-
-### Grafana dashboard metrics
-
-Recommended dashboard panels include:
-
-- HTTP request count by endpoint
-- HTTP request latency and response time
-- JVM heap usage and thread count
-- application uptime
-- route cache hit/miss rate
-- cache size and eviction count
-- Prometheus target health status
-- request rate and error rate for `/api/routes` and `/api/poi/nearest`
-
-These metrics help validate how the backend performs under normal traffic and during route-heavy requests.
-
-### Route caching
-
-The application caches route results using a key derived from:
-
-- start node
-- destination node
-- wheelchair requirement
-
-Example cache key:
-
-```text
-N1-N6-false
-```
-
-This helps avoid recomputing the same path for repeated requests when the campus graph is unchanged. The trade-off is that cached responses can become stale if graph data, closures, or congestion values change. In this project, the 5-minute expiration window strikes a practical balance between fast repeated lookups and route freshness.
-
-## Graph Backup and Recovery
-
-The app includes a backup mechanism for the in-memory graph so the campus structure can be restored if needed.
-
-Components:
-
-- `GraphBackupInitializer`
-- `GraphRecoveryService`
-- `Graph.deepCopy()`
-
-### Backup behavior
-
-`createBackup()` creates an independent deep copy of the current campus graph.
-
-### Recovery checks
-
-`isBackupAvailable()` checks whether a recovery backup exists before attempting restoration.
-
-### Restore behavior
-
-`recoverGraph()` restores a fresh copy of the backup graph for fallback or recovery scenarios.
-
-This is a fault-tolerance feature for the runtime graph used during route calculations. It is useful for protecting graph state in a prototype environment, although the active routing engine remains in-memory rather than database-driven.
 
 ## Running the Project
 
-### Prerequisites
-
-- Java 17+
-- Maven
-
-### Start the application
+From the project root, run:
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-On Windows:
+### Development resources
 
-```powershell
-mvnw.cmd spring-boot:run
-```
-
-Application URL:
-
-```text
-http://localhost:8080
-```
-
-### Run tests
-
-```bash
-./mvnw test
-```
+- Swagger UI: http://localhost:8080/swagger-ui/index.html
+- Health endpoint: http://localhost:8080/api/health
 
 ## Notes
 
-This project is a backend prototype for an indoor wayfinding system. It demonstrates graph traversal, constrained shortest-path routing, POI detection, authentication, caching, and monitoring in a single Spring Boot service.
-
-The current implementation uses an in-memory graph as the active routing source, while the JPA layer provides model support for future persistence and database-driven campus data.
+- The campus graph is initialized in-memory during startup.
+- Graph backup is created automatically via the startup initializer.
+- The routing API is protected by HTTP Basic Authentication.
+- Swagger docs show the expected request/response structure and allow interactive testing.

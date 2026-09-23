@@ -1,7 +1,6 @@
 package com.movieinsync.wayfinding;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.movieinsync.wayfinding.controller.RouteController;
 import com.movieinsync.wayfinding.model.RouteRequest;
 import com.movieinsync.wayfinding.service.RouteService;
 
